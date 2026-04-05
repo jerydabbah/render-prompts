@@ -175,8 +175,28 @@
     <button class="pill" data-type="rural" onclick="setType(this)">Rural / Paisaje</button>
   </div>
 
-  <!-- Step 2: Engine -->
-  <div class="step-label">02 — Motor de imagen</div>
+  <!-- Step 2: AI Provider -->
+  <div class="step-label">02 — IA que analiza la imagen</div>
+  <div class="engines" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 28px;">
+    <div class="engine-card active" data-provider="openai" onclick="setProvider(this)">
+      <span class="engine-icon">◎</span>
+      <div class="engine-name">ChatGPT</div>
+      <div class="engine-desc">GPT-4o</div>
+    </div>
+    <div class="engine-card" data-provider="gemini" onclick="setProvider(this)">
+      <span class="engine-icon">✦</span>
+      <div class="engine-name">Gemini</div>
+      <div class="engine-desc">1.5 Flash</div>
+    </div>
+    <div class="engine-card" data-provider="anthropic" onclick="setProvider(this)">
+      <span class="engine-icon">⬡</span>
+      <div class="engine-name">Claude</div>
+      <div class="engine-desc">Anthropic</div>
+    </div>
+  </div>
+
+  <!-- Step 3: Engine -->
+  <div class="step-label">03 — Motor de imagen</div>
   <div class="engines">
     <div class="engine-card active" data-engine="gemini" onclick="setEngine(this)">
       <span class="engine-icon">✦</span>
@@ -205,8 +225,8 @@
     </div>
   </div>
 
-  <!-- Step 3: Image -->
-  <div class="step-label">03 — Imagen del proyecto</div>
+  <!-- Step 4: Image -->
+  <div class="step-label">04 — Imagen del proyecto</div>
   <div class="drop-zone" id="drop" onclick="document.getElementById('fi').click()">
     <span class="drop-icon">⬡</span>
     <div class="drop-title">Arrastrá tu imagen aquí</div>
@@ -252,8 +272,15 @@
 <script>
   let cType = 'exterior';
   let cEngine = 'gemini';
+  let cProvider = 'openai';
   let b64 = null;
   let cMime = 'image/jpeg';
+
+  function setProvider(card) {
+    cProvider = card.dataset.provider;
+    card.closest('.engines').querySelectorAll('.engine-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+  }
 
   const engineNames = {
     gemini: 'Gemini / Nano Banana',
@@ -314,7 +341,7 @@
       const resp = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: b64, imageMime: cMime, projectType: cType, engine: cEngine })
+        body: JSON.stringify({ imageBase64: b64, imageMime: cMime, projectType: cType, engine: cEngine, aiProvider: cProvider })
       });
 
       const data = await resp.json();
