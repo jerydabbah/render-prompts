@@ -1,0 +1,6 @@
+{
+  "name": "render-prompts",
+  "version": "1.0.0",
+  "description": "Generador de prompts arquitectónicos con IA",
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Render Prompts</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0c0c0c;
+    --surface: #141414;
+    --surface2: #1c1c1c;
+    --border: #272727;
+    --text: #eeebe5;
+    --muted: #555;
+    --accent: #c9f04b;
+    --accent-dim: rgba(201,240,75,0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(201,240,75,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(201,240,75,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 52px 24px 80px; }
+
+  /* Header */
+  .hdr { margin-bottom: 40px; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 64px; line-height: 1; letter-spacing: 3px; color: var(--accent); }
+  .logo em { color: var(--text); opacity: 0.18; font-style: normal; }
+  .sub { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+  .rule { height: 1px; background: linear-gradient(90deg, var(--accent) 0%, transparent 55%); margin: 16px 0 36px; }
+
+  /* Step label */
+  .step-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 12px; font-family: 'DM Mono', monospace; }
+
+  /* Pills row */
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px; }
+  .pill {
+    padding: 7px 18px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; border-radius: 2px;
+  }
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.active { background: var(--accent); border-color: var(--accent); color: #0c0c0c; font-weight: 600; }
+
+  /* Engine grid */
+  .engines { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 32px; }
+  .engine-card {
+    border: 1px solid var(--border); background: var(--surface);
+    padding: 14px 16px; cursor: pointer; transition: all 0.15s;
+    position: relative; border-radius: 2px;
+  }
+  .engine-card:hover { border-color: #444; }
+  .engine-card.active { border-color: var(--accent); background: var(--accent-dim); }
+  .engine-card.active::after {
+    content: '✓'; position: absolute; top: 8px; right: 10px;
+    font-size: 11px; color: var(--accent); font-weight: 600;
+  }
+  .engine-icon { font-size: 20px; margin-bottom: 8px; display: block; }
+  .engine-name { font-size: 13px; font-weight: 500; color: var(--text); }
+  .engine-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Drop zone */
+  .drop-zone {
+    border: 1px dashed var(--border); background: var(--surface);
+    padding: 56px 32px; text-align: center; cursor: pointer;
+    transition: all 0.2s; margin-bottom: 20px; border-radius: 2px;
+    position: relative; overflow: hidden;
+  }
+  .drop-zone:hover, .drop-zone.over { border-color: var(--accent); background: var(--accent-dim); }
+  .drop-zone.has-img { padding: 0; border-style: solid; }
+  .drop-icon { font-size: 36px; margin-bottom: 12px; display: block; opacity: 0.3; }
+  .drop-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; margin-bottom: 6px; }
+  .drop-sub { font-size: 12px; color: var(--muted); }
+  #prev-img { width: 100%; max-height: 380px; object-fit: contain; display: none; background: #000; }
+  .img-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 10px 14px; background: linear-gradient(transparent, rgba(0,0,0,0.75));
+    display: none; justify-content: space-between; align-items: center;
+  }
+  .drop-zone.has-img:hover .img-bar { display: flex; }
+  .img-fname { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--accent); }
+  .img-change { font-size: 11px; background: rgba(255,255,255,0.12); border: none; color: #fff; padding: 3px 10px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+  /* Generate button */
+  .gen-btn {
+    width: 100%; padding: 18px; background: var(--accent); border: none;
+    color: #0c0c0c; font-family: 'Bebas Neue', sans-serif; font-size: 22px;
+    letter-spacing: 4px; cursor: pointer; transition: all 0.15s; margin-bottom: 36px;
+    border-radius: 2px; position: relative; overflow: hidden;
+  }
+  .gen-btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+  .gen-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+  .gen-btn .bar { position: absolute; bottom: 0; left: -100%; height: 3px; width: 60%; background: rgba(0,0,0,0.2); animation: slide 1.2s infinite; display: none; }
+  .gen-btn.loading .bar { display: block; }
+  @keyframes slide { to { left: 140%; } }
+
+  /* Error */
+  .err { background: rgba(240,74,74,0.08); border: 1px solid rgba(240,74,74,0.25); color: #f47; padding: 14px 16px; font-size: 13px; font-family: 'DM Mono', monospace; margin-bottom: 20px; display: none; border-radius: 2px; }
+
+  /* Results */
+  #results { display: none; }
+  .res-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .res-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; }
+  .res-engine { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; padding: 3px 10px; background: var(--accent-dim); color: var(--accent); font-weight: 600; }
+
+  /* Analysis */
+  .analysis {
+    border-left: 2px solid var(--accent); padding: 12px 16px;
+    background: var(--surface); margin-bottom: 20px; border-radius: 0 2px 2px 0;
+    animation: up 0.3s ease;
+  }
+  .analysis-lbl { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--accent); font-weight: 500; font-family: 'DM Mono', monospace; margin-bottom: 6px; }
+  .analysis-txt { font-size: 13px; color: #999; line-height: 1.6; }
+
+  /* Prompt cards */
+  .pcard { border: 1px solid var(--border); background: var(--surface); margin-bottom: 14px; border-radius: 2px; animation: up 0.35s ease; }
+  .pcard:nth-child(2) { animation-delay: 0.08s; opacity: 0; animation-fill-mode: forwards; }
+  .pcard:nth-child(3) { animation-delay: 0.16s; opacity: 0; animation-fill-mode: forwards; }
+  @keyframes up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .pcard-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .pcard-lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .pcard-tag { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; padding: 2px 8px; color: var(--accent); background: var(--accent-dim); font-weight: 600; }
+  .pcard-body { padding: 14px; }
+  .pcard-txt { font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.75; color: #aaa; white-space: pre-wrap; word-break: break-word; }
+  .pcard-foot { padding: 8px 14px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+  .copy-btn { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: transparent; border: 1px solid var(--border); padding: 5px 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; border-radius: 2px; }
+  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn.ok { border-color: var(--accent); color: var(--accent); }
+
+  /* Negative prompt */
+  .neg-card { border: 1px solid #2a1a1a; background: rgba(240,74,74,0.04); padding: 14px; margin-bottom: 14px; border-radius: 2px; animation: up 0.35s ease 0.2s; opacity: 0; animation-fill-mode: forwards; }
+  .neg-lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #f47; font-family: 'DM Mono', monospace; margin-bottom: 8px; }
+  .neg-txt { font-family: 'DM Mono', monospace; font-size: 12px; color: #888; line-height: 1.6; }
+
+  /* Tips */
+  .tips-card { border: 1px solid var(--border); background: var(--surface); padding: 14px 16px; border-radius: 2px; animation: up 0.35s ease 0.28s; opacity: 0; animation-fill-mode: forwards; }
+  .tips-lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 10px; }
+  .tip-item { display: flex; gap: 10px; font-size: 13px; color: #888; margin-bottom: 6px; line-height: 1.5; }
+  .tip-dot { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; }
+  .ft-logo { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px; color: var(--muted); }
+  .ft-note { font-size: 11px; color: var(--muted); }
+
+  input[type=file] { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div class="logo">ARK<em>/</em>PROMPTS</div>
+    <div class="sub">Generador de prompts para renders arquitectónicos</div>
+  </div>
+  <div class="rule"></div>
+
+  <!-- Step 1: Project type -->
+  <div class="step-label">01 — Tipo de proyecto</div>
+  <div class="pills">
+    <button class="pill active" data-type="exterior" onclick="setType(this)">Exterior / Fachada</button>
+    <button class="pill" data-type="interior" onclick="setType(this)">Interior</button>
+    <button class="pill" data-type="rural" onclick="setType(this)">Rural / Paisaje</button>
+  </div>
+
+  <!-- Step 2: Engine -->
+  <div class="step-label">02 — Motor de imagen</div>
+  <div class="engines">
+    <div class="engine-card active" data-engine="gemini" onclick="setEngine(this)">
+      <span class="engine-icon">✦</span>
+      <div class="engine-name">Gemini</div>
+      <div class="engine-desc">Nano Banana Pro</div>
+    </div>
+    <div class="engine-card" data-engine="midjourney" onclick="setEngine(this)">
+      <span class="engine-icon">◈</span>
+      <div class="engine-name">Midjourney</div>
+      <div class="engine-desc">v6.1</div>
+    </div>
+    <div class="engine-card" data-engine="dalle" onclick="setEngine(this)">
+      <span class="engine-icon">◎</span>
+      <div class="engine-name">DALL-E 3</div>
+      <div class="engine-desc">ChatGPT</div>
+    </div>
+    <div class="engine-card" data-engine="sdxl" onclick="setEngine(this)">
+      <span class="engine-icon">◇</span>
+      <div class="engine-name">Stable Diffusion</div>
+      <div class="engine-desc">SDXL</div>
+    </div>
+    <div class="engine-card" data-engine="flux" onclick="setEngine(this)">
+      <span class="engine-icon">⬡</span>
+      <div class="engine-name">Flux</div>
+      <div class="engine-desc">Black Forest Labs</div>
+    </div>
+  </div>
+
+  <!-- Step 3: Image -->
+  <div class="step-label">03 — Imagen del proyecto</div>
+  <div class="drop-zone" id="drop" onclick="document.getElementById('fi').click()">
+    <span class="drop-icon">⬡</span>
+    <div class="drop-title">Arrastrá tu imagen aquí</div>
+    <div class="drop-sub">o hacé click · JPG, PNG, WEBP</div>
+    <img id="prev-img" alt="preview">
+    <div class="img-bar" id="img-bar">
+      <span class="img-fname" id="img-fname"></span>
+      <button class="img-change" onclick="event.stopPropagation(); document.getElementById('fi').click()">Cambiar</button>
+    </div>
+  </div>
+  <input type="file" id="fi" accept="image/*">
+
+  <!-- Error -->
+  <div class="err" id="err"></div>
+
+  <!-- Generate -->
+  <button class="gen-btn" id="gen-btn" onclick="generate()" disabled>
+    GENERAR PROMPT
+    <div class="bar"></div>
+  </button>
+
+  <!-- Results -->
+  <div id="results">
+    <div class="res-hdr">
+      <div class="res-title">PROMPT GENERADO</div>
+      <div class="res-engine" id="res-engine"></div>
+    </div>
+    <div class="analysis" id="analysis" style="display:none">
+      <div class="analysis-lbl">Análisis de la imagen</div>
+      <div class="analysis-txt" id="analysis-txt"></div>
+    </div>
+    <div id="prompts-wrap"></div>
+  </div>
+
+  <footer>
+    <div class="ft-logo">RENDER PROMPTS</div>
+    <div class="ft-note">Powered by Claude · Anthropic</div>
+  </footer>
+</div>
+
+<input type="file" id="fi" accept="image/*" style="display:none">
+
+<script>
+  let cType = 'exterior';
+  let cEngine = 'gemini';
+  let b64 = null;
+  let cMime = 'image/jpeg';
+
+  const engineNames = {
+    gemini: 'Gemini / Nano Banana',
+    midjourney: 'Midjourney v6.1',
+    dalle: 'DALL-E 3',
+    sdxl: 'Stable Diffusion XL',
+    flux: 'Flux'
+  };
+
+  function setType(btn) {
+    cType = btn.dataset.type;
+    document.querySelectorAll('.pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function setEngine(card) {
+    cEngine = card.dataset.engine;
+    document.querySelectorAll('.engine-card').forEach(c => c.classList.remove('active'));
+    card.classList.add('active');
+  }
+
+  // Drag & drop
+  const drop = document.getElementById('drop');
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f?.type.startsWith('image/')) loadImg(f); });
+  document.getElementById('fi').addEventListener('change', e => { if (e.target.files[0]) loadImg(e.target.files[0]); });
+
+  function loadImg(file) {
+    cMime = file.type || 'image/jpeg';
+    const reader = new FileReader();
+    reader.onload = ev => {
+      b64 = ev.target.result.split(',')[1];
+      const img = document.getElementById('prev-img');
+      img.src = ev.target.result;
+      img.style.display = 'block';
+      drop.classList.add('has-img');
+      drop.querySelector('.drop-icon').style.display = 'none';
+      drop.querySelector('.drop-title').style.display = 'none';
+      drop.querySelector('.drop-sub').style.display = 'none';
+      document.getElementById('img-fname').textContent = file.name;
+      document.getElementById('gen-btn').disabled = false;
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('err').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function generate() {
+    const btn = document.getElementById('gen-btn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    btn.childNodes[0].textContent = 'ANALIZANDO...';
+    document.getElementById('err').style.display = 'none';
+    document.getElementById('results').style.display = 'none';
+
+    try {
+      const resp = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: b64, imageMime: cMime, projectType: cType, engine: cEngine })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error || 'Error del servidor');
+      renderResults(data);
+
+    } catch (e) {
+      const el = document.getElementById('err');
+      el.textContent = '⚠ ' + e.message;
+      el.style.display = 'block';
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+      btn.childNodes[0].textContent = 'GENERAR PROMPT';
+    }
+  }
+
+  function renderResults(data) {
+    document.getElementById('res-engine').textContent = engineNames[cEngine] || cEngine;
+
+    if (data.analysis) {
+      document.getElementById('analysis-txt').textContent = data.analysis;
+      document.getElementById('analysis').style.display = 'block';
+    }
+
+    const wrap = document.getElementById('prompts-wrap');
+    wrap.innerHTML = '';
+
+    // Main prompt
+    if (data.prompt_main) wrap.appendChild(makeCard('Prompt principal', data.prompt_main));
+    // Alt prompt
+    if (data.prompt_alt) wrap.appendChild(makeCard('Variante — ángulo / iluminación alternativa', data.prompt_alt));
+    // Negative prompt (SDXL)
+    if (data.negative_prompt) {
+      const neg = document.createElement('div');
+      neg.className = 'neg-card';
+      neg.innerHTML = `<div class="neg-lbl">Negative prompt (SDXL)</div><div class="neg-txt">${esc(data.negative_prompt)}</div>`;
+      wrap.appendChild(neg);
+    }
+    // Tips
+    if (data.tips?.length) {
+      const tips = document.createElement('div');
+      tips.className = 'tips-card';
+      tips.innerHTML = `<div class="tips-lbl">Tips para ${engineNames[cEngine]}</div>` +
+        data.tips.map(t => `<div class="tip-item"><span class="tip-dot">▸</span><span>${esc(t)}</span></div>`).join('');
+      wrap.appendChild(tips);
+    }
+
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function makeCard(label, text) {
+    const card = document.createElement('div');
+    card.className = 'pcard';
+    card.innerHTML = `
+      <div class="pcard-head">
+        <span class="pcard-lbl">${label}</span>
+        <span class="pcard-tag">${engineNames[cEngine]}</span>
+      </div>
+      <div class="pcard-body"><div class="pcard-txt">${esc(text)}</div></div>
+      <div class="pcard-foot">
+        <button class="copy-btn" onclick="copyTxt(this, ${JSON.stringify(text)})">Copiar</button>
+      </div>`;
+    return card;
+  }
+
+  async function copyTxt(btn, text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = '✓ Copiado';
+      btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('ok'); }, 2000);
+    } catch { btn.textContent = 'Error'; }
+  }
+
+  function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
